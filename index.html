@@ -1,0 +1,136 @@
+
+<html>
+  <head>
+    <title>RSA key modulus (n) visualizer</title>
+		<script src="lib/jsbn.js"></script>
+		<script src="lib/jsbn2.js"></script>
+		<script src="lib/prng4.js"></script>
+		<script src="lib/rng.js"></script>
+		<script src="lib/rsa.js"></script>
+		<script src="lib/rsa2.js"></script>
+		<script src="lib/crc8.js"></script>
+		<script src="lib/d3.min.js"></script>
+		<script>
+
+			function visualizeN(x,y) {
+
+				var colWidth = rowHeight = 79 
+				var maxCols = 7
+				var rowCount = 6 
+				
+				var pk = new RSAKey()
+				pk.generate("1024","10001")
+
+				var crc8 = new CRC8()
+
+				var keyHexStr = pk.n.toString(16)
+				var keyByteArray = hexStringToByteArray(keyHexStr)
+				var keyCharStr = hexStringToCharStr(keyHexStr)
+				var shapeData = hexStringToShapeData(keyHexStr) 
+
+				// set up a movable container
+					var g = d3.select('svg').append('g')
+						.attr('transform','translate('+x+','+y+')')
+						.attr('width',colWidth * maxCols)
+						.attr('height',(rowHeight+1) * rowCount)
+
+				// combine trailing 2 bytes with a 1 byte checksum and use it to make a colored frame
+					var checksum = crc8.checksum(keyByteArray)
+					var frameColor = '#'+ keyByteArray[126].toString(16) 
+															+ keyByteArray[127].toString(16) 
+															+ checksum.toString(16)
+					var rect = g.selectAll('rect')
+					rect.data([frameColor])
+						.enter()
+						.append('rect')
+						.attr('x',0).attr('y',0)
+						.attr('width', colWidth * maxCols)
+						.attr('height', rowHeight * rowCount)
+						.attr('fill', String)
+					rect.data([frameColor])
+						.transition()
+						.attr('fill', String)
+
+				// make a colored circle for every 3 bytes in the modulus 
+					var circles = g.selectAll('circle')
+					circles.data(shapeData)
+						.enter()
+						.append('circle')
+						.attr('r', colWidth/2)
+						.attr('fill', function(d){ return '#' + d.red + d.green + d.blue})
+						.attr('cx', function(d){return d.col * colWidth + colWidth/2 })
+						.attr('cy', function(d){return d.row * rowHeight + rowHeight/2 })
+
+				// recolor any existing ones
+					circles.data(shapeData)
+						.transition()
+						.attr('fill', function(d){ return '#' + d.red + d.green + d.blue})
+
+				// relevant text		
+					var text = g.selectAll('text')
+					text.data([keyHexStr]).enter().append('text')
+						.text(String)
+						.attr('x',2).attr('y',rowCount*rowHeight+10)
+						.attr('fill','steelblue')
+						.attr('font-size',4).attr('font-family','sans-serif')
+					text.data([keyHexStr])
+						.transition()
+						.text(String)
+
+				function hexStringToShapeData (keyHexStr) {
+					var a = []
+					for (var hexit_i = 0; hexit_i < keyHexStr.length-4; hexit_i += 6){
+						var shape_i = hexit_i / 6 
+						a.push({
+							red: 		keyHexStr.substr(hexit_i+0,2),
+							green: 	keyHexStr.substr(hexit_i+2,2),
+							blue: 	keyHexStr.substr(hexit_i+4,2),
+							col: 		shape_i % maxCols ,
+							row: 		Math.floor(shape_i/maxCols),
+						}) // end push
+					} // end for
+					return a
+				} // end fn
+
+				function hexStringToByteArray (hexStr) {
+					var a = []
+					for (var hexit_i = 0; hexit_i < hexStr.length; hexit_i += 2){
+						var hexByteStr = hexStr.substr(hexit_i,2)
+						var decByte = parseInt(hexByteStr,16)
+						a.push(decByte)
+					}
+					return a
+				}
+
+				function hexStringToCharStr (hexStr) {
+					var a = "" 
+					for (var hexit_i = 0; hexit_i < hexStr.length; hexit_i += 2){
+						var hexByteStr = hexStr.substr(hexit_i,2)
+						var decByte = parseInt(hexByteStr,16)
+						a += String.fromCharCode(decByte)
+					}
+					return a
+				}
+
+			} // end visualizeN
+
+			function visualizeNs(rows,cols,padding){
+				var r=rows
+				while(r--){
+					var c=cols
+					while(c--){
+						visualizeN(r*padding, c*padding, padding)
+					} // end while
+				} // end while
+
+			} // end visualizeNs
+
+		</script>
+	<head>
+
+	<body onload="visualizeNs(1,1,10)" >	
+		<svg></svg>
+  </body>
+
+
+</html>
